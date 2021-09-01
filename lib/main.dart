@@ -4,11 +4,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_authentication_firebase/home.dart';
 import 'package:phone_authentication_firebase/otpScreen.dart';
+import 'package:pinput/pin_put/pin_put.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MyApp());
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool userStatus = prefs.containsKey('uid');
+  runApp(userStatus == true ? HomeScreen() : MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -40,6 +46,14 @@ class _LoginState extends State<Login> {
   LoginScreen currentState = LoginScreen.SHOW_MOBILE_ENTER_WIDGET;
   FirebaseAuth _auth = FirebaseAuth.instance;
   String verificationID = "";
+  final FocusNode _pinPutFocusNode = FocusNode();
+  final BoxDecoration pinPutDecoration = BoxDecoration(
+    color: const Color.fromRGBO(43, 46, 66, 1),
+    borderRadius: BorderRadius.circular(10.0),
+    border: Border.all(
+      color: const Color.fromRGBO(126, 203, 224, 1),
+    ),
+  );
 
   void SignOutME() async {
     await _auth.signOut();
@@ -48,8 +62,15 @@ class _LoginState extends State<Login> {
   void signInWithPhoneAuthCred(AuthCredential phoneAuthCredential) async {
     try {
       final authCred = await _auth.signInWithCredential(phoneAuthCredential);
-
+      // var response = await .get(headers: {'Authorization':"Bearer ${FirebaseAuth.instance.currentUser!.getIdToken()}"});
+      var token1 = await _auth.currentUser!.getIdToken();
+      String token = "";
+      _auth.currentUser!.getIdToken().then((result) {
+        token = result;
+      });
       if (authCred.user != null) {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString('uid', _auth.currentUser!.uid);
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => HomeScreen()));
       }
@@ -76,13 +97,16 @@ class _LoginState extends State<Login> {
           height: 20,
         ),
         Center(
-          child: TextField(
-            controller: phoneController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                hintText: "Enter Your PhoneNumber"),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                  border:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintText: "Enter Your PhoneNumber"),
+            ),
           ),
         ),
         SizedBox(
@@ -128,19 +152,54 @@ class _LoginState extends State<Login> {
         SizedBox(
           height: 20,
         ),
-        Center(
-          child: TextField(
-            controller: otpController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                hintText: "Enter Your OTP"),
-          ),
-        ),
+        // Center(
+        //   // child: TextField(
+        //   //   controller: otpController,
+        //   //   keyboardType: TextInputType.number,
+        //   //   decoration: InputDecoration(
+        //   //       border:
+        //   //           OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        //   //       hintText: "Enter Your OTP"),
+        //   // ),
+        // ),
         SizedBox(
           height: 20,
         ),
+        Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: PinPut(
+            fieldsCount: 6,
+            textStyle: const TextStyle(fontSize: 25.0, color: Colors.white),
+            eachFieldWidth: 40.0,
+            eachFieldHeight: 55.0,
+            focusNode: _pinPutFocusNode,
+            controller: otpController,
+            submittedFieldDecoration: pinPutDecoration,
+            selectedFieldDecoration: pinPutDecoration,
+            followingFieldDecoration: pinPutDecoration,
+            pinAnimationType: PinAnimationType.fade,
+            // onSubmit: (pin) async {
+            //   try {
+            //     await FirebaseAuth.instance
+            //         .signInWithCredential(PhoneAuthProvider.credential(
+            //         verificationId: _verificationCode, smsCode: pin))
+            //         .then((value) async {
+            //       if (value.user != null) {
+            //         Navigator.pushAndRemoveUntil(
+            //             context,
+            //             MaterialPageRoute(builder: (context) => HomeScreen()),
+            //                 (route) => false);
+            //       }
+            //     });
+            //   } catch (e) {
+            //     FocusScope.of(context).unfocus();
+            //     _scaffoldkey.currentState!
+            //         .showSnackBar(SnackBar(content: Text('invalid OTP')));
+            //   }
+
+          ),
+        ),
+        SizedBox(height: 50,),
         ElevatedButton(
             onPressed: () {
               AuthCredential phoneAuthCredential = PhoneAuthProvider.credential(
@@ -164,4 +223,5 @@ class _LoginState extends State<Login> {
           : showOtpFormWidget(context),
     );
   }
+
 }
